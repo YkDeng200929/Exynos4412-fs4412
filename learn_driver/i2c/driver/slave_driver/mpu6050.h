@@ -1,0 +1,7 @@
+#ifndef _MPU6050_HEAD_H
+#define _MPU6050_HEAD_H
+
+#define	MPU6050_IOCTL_BASE	'M'
+#define MPU6050_GET_TEMP	_IOR (MPU6050_IOCTL_BASE,0x00,short)
+
+#endif

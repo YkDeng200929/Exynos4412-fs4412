@@ -1,0 +1,23 @@
+led1{
+	/*用于和driver匹配*/
+	compatible = "farsight,fs4412-led";
+
+	/*
+	 *与led灯链接的引脚
+	 *
+	 *@gpx2  属于gpx2这一组
+	 *@7     gpx2这一组的第7个引脚
+	 *@1     flag:高电平点亮
+	 */
+	led-gpios  = <&gpx2 7 1>;
+
+	/*status 用来决定是否创建platform device
+	 *
+	 *会创建platform device的情况
+	 *(1)没有status
+	 *(2)status值为 "okay","ok"
+	 *
+	 *其他值不会创建
+	 */
+	status     = "okay";
+};

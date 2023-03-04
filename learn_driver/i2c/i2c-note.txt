@@ -1,0 +1,206 @@
+IICON -------- MPU6050
+
+MPU6050驱动:
+<1>IICON代码(exynos4412)
+<2>MPU6050代码
+
+
+LM75驱动:
+<1>IICON代码(exynos4412)
+<2>LM75代码
+
+缺点:
+驱动移植性差，IICON控制器会重复编写
+
+IICON驱动(芯片厂家)   MPU6050
+                       LM75
+
+
+1.问:在Linux系统中，如何才能让我们的i2c从设备正常工作?
+  答:
+  	 <1>i2c 控制器的驱动
+  	 	  drivers/i2c/busses/i2c-s3c2410.c
+  	 	  
+  	 	  问:如何让我们的i2c-s3c2410.c这个控制器驱动工作?
+  	 	  答:
+  	 	  	 <1>确定它已经被编译进内核
+  	 	  		  drivers/i2c/busses/i2c-s3c2410.o 是否存在
+  	 	  		  ,如果不存在则表示没有配置进内核，此时我们需要配置内核
+  	 	  		  Kconfig和Makefile
+  	 	  		  
+  	 	  	 <2>在设备树中要添加i2c控制器设备的设备信息
+  	 	  
+  	 	  问:i2c控制器驱动工作的时候，做了什么事情?
+  	 	  答:向Linux内核中添加了一个i2c控制器(i2c-adpter）,i2c-dev.c这个通用从设备驱动在工作的时候，它会
+  	 	  	 根据i2c控制器设备生成一个对应的设备文件(主设备号:89)	
+  	 	  	
+  	 <2>i2c 从设备的驱动
+  	 	  第一种情况:
+  	 	  使用Linux内核中提供的通用的从设备驱动(i2c-dev.c)
+  	 	  <1>确保已经编译进内核
+  	 	  	 drivers/i2c/i2c-dev.o是否存在
+  	 	  
+  	 	  第二种情况:
+  	 	  程序员自己根据从设备编写从设备驱动
+  	 	  
+2.问:Linux系统系统中，i2c-dev.c号称是通用的从设备驱动，它是如何做到通用的呢?
+	答:
+		这个驱动在加载的时候，它会为Linux系统中，已经注册的i2c控制器设备生成一个设备文件
+		(主设备号:89,次设备号:i2c控制器的编号)。
+		疑问:i2c控制器设备是什么时候添加到Linux系统中的呢?
+		回答:i2c控制器驱动加载的时候,它的probe函数执行的时候，添加了i2c控制器设备到Linux系统中。
+		
+		i2c-dev.c实现的从设备驱动中，并不包含实际的从设备操作方法。它只是在应用层给程序员提供了
+		一个设备文件，通过这个设备文件可以找到特定i2c控制器设备。这样我们就可以在应用层根据
+		特定的从设备，操作i2c控制器，从而控制从设备。
+				
+		
+3.问:如何通过i2c-dev.c的通用从设备驱动操作i2c从设备?
+	答:
+		 第一步:
+		 		我们需要确定从设备是由那个i2c控制器控制
+		 		例如:
+		 			  mpu6050是由i2c-5控制器
+		 
+		 第二步:
+		 		通过i2c控制器的设备文件，找到i2c控制器
+		 		
+		 		例如:
+		 			  fd = open("/dev/i2c-5",O_RDWR);
+		 			  
+		 			  
+		 第三步:
+		 	  我们需要将i2c从设备的信息，发送给i2c控制器，然后i2c控制器收到从设备的信息后，
+		 	  解析从设备的信息，从而发出i2c总线时序，和i2c从设备通信。
+		 	  
+		 	  
+		 	  问:i2c从设备的信息，如何发送呢?
+		 	  答:
+		 	  	 在Linux系统中，i2c从设备的信息，存放在i2c_msg的结构体中。我们只需要将i2c_msg这个结构体
+		 	  	 发送到i2c控制器就可以了。
+		 	  	 
+		 	  
+		 	  问:如何填充i2c_msg这个结构体?
+		 	  答:
+		 	  	<1>从机地址
+		 	  	<2>读写标志位
+		 	  	<3>数据的长度
+		 	  	<4>数据存放的地址
+		 	  	
+		 	  
+		 	  问:具体发送几个i2c_msg结构体呢?
+		 	  答:
+		 	  	 这个需要根据i2c从设备的操作时序来确定，一个开始信号，对应i2c_msg。 
+		 	  	 
+		 	  	 
+		 	 例如:
+		 	 我们需要从mpu6050这个从设备中，读取它采集的温度,而mpu6050采集好温度数据之后，将温度数据
+		 	 存放在了它内部的寄存器中。我们如果需要读取温度，那就必须要告诉mpu6050寄存器的地址，然后
+		 	 mpu6050才会将寄存器中存放的数据发送给我们。
+		 	 
+		 	 void mpu6050_write_register(int fd,usigned char regaddr,unsigned char regval)
+		 	 {
+		 	 	    int ret;
+		 	      struct i2c_msg msg;
+		 	      struct i2c_rdwr_ioctl_data  ioctl_data;
+		 	      unsigned char tx_buf[] = {regaddr,regval};
+		 	      
+		 	      msg.addr  = 0x68;
+		 	      msg.flags = 0x0;
+		 	      msg.len   = sizeof(tx_buf)/sizeof(tx_buf[0]);
+		 	      msg.buf   = tx_buf;
+		 	      
+		 	      ioctl_data.msgs  = &msg;
+		 	      ioctl_data.nmsgs = 1;
+		 	      ret = ioctl(fd,I2C_RDWR,&ioctl_data);
+		 	      if(ret < 0){
+		 	      	 perror("Fail to ioctl");
+		 	      	 return ;
+		 	      }
+		 	      
+		 	      return;
+		 	 }
+		 	 
+		 	 unsigned char mpu6050_red_register(unsigned char regaddr)
+		 	 {
+		 	     int ret;
+		 	 	   struct i2c_msg msg[2];
+		 	 	   unsigned char rx_buf[1];
+		 	 	   unsigned char tx_buf[] = {regaddr};
+		 	 	   struct i2c_rdwr_ioctl_data  ioctl_data;
+		 	 	   
+		 	 	   msg[0].addr  = 0x68;
+		 	 	   msg[0].flags = 0x0;
+		 	 	   msg[0].len   = sizeof(tx_buf)/sizeof(tx_buf[0]);
+		 	     msg[0].buf   = tx_buf;
+		 	     
+		 	     msg[1].addr  = 0x68;
+		 	 	   msg[1].flags = 0x1;
+		 	 	   msg[1].len   = sizeof(rx_buf)/sizeof(rx_buf[0]);
+		 	     msg[1].buf   = rx_buf;
+		 	     
+		 	         
+		 	      ioctl_data.msgs  = msg;
+		 	      ioctl_data.nmsgs = sizeof(msg)/sizeof(msg[0]);
+		 	      ret = ioctl(fd,I2C_RDWR,&ioctl_data);
+		 	      if(ret < 0){
+		 	      	 perror("Fail to ioctl");
+		 	      	 return ;
+		 	      }
+		 	     
+		 	     return rx_buf[0];
+		 	 }
+		 	 
+
+		 	 
+		 	 
+---------------------------------------------------------------------------------------------------------------
+问:在Linux的IIC总线上，从设备用什么结构体描述?
+答:
+
+问:Linux的IIC总线上的设备描述的结构体是struct i2c_client,它是如何构建出来的?
+答:
+
+--------------------------------------------------------------------------------------------------------------
+		 	 	  	 	 
+4.如何给予i2c总线，编写从设备驱动呢?
+
+(1)填充结构体
+	 i2c_driver
+	 	 	  	 		
+	 	 	  	 		
+	 static const struct i2c_device_id mpu6050_id[] = {
+			{ "mpu6050", 0 },
+			{ "mpu6060", 0 },
+			{}
+	};
+
+MODULE_DEVICE_TABLE(i2c,mpu6050_id);
+
+static struct i2c_driver mpu6050_driver = {
+	.driver = {
+		.name = "mpu6050",
+	},
+	.probe = mpu6050_probe,
+	.remove = mpu6050_remove,
+	.id_table = mpu6050_id,
+};
+module_i2c_driver(mpu6050_driver);	 	  	
+
+(2)实现probe函数
+   static int mpu6050_probe(struct i2c_client *client,
+				   const struct i2c_device_id *id)
+				   
+	 {
+	 			//获取资源:i2c_client 有从机地址
+	 			
+	 			//注册字符设备:提供操作设备的函数接口
+	 } 
+	 
+	 
+(3)xxxx_read(struct ....)
+  {
+  		//唤醒
+  		//读温度
+  		//拷贝到用户空间
+  }	 			   		

@@ -1,0 +1,14 @@
+adc@126c0000{
+	compatible  	 = "Samsung,exynos4412-adc";
+	reg        		 = <0x126c0000 0x20>;   
+	adc-io-channer   = <3>;
+	clocks      	 = <&clock 326>;
+	clock-names 	 = "adc";
+	interrupt-parent = <&combiner>;
+	/*
+	 *First  Cell  :Combiner Group Number
+	 *Second Cell  :Interrupt number within Group
+	 */
+	interrupts       = <10 3>;
+	status      	 = "okay";
+};

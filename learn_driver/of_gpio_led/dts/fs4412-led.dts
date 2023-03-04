@@ -1,0 +1,4 @@
+fs4412-led-gpio{
+		compatible = "fs4412-led-gpio";
+		led-gpio   = <&gpx2 7 1>;
+};

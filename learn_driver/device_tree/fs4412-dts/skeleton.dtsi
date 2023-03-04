@@ -1,0 +1,192 @@
+/*
+ * Skeleton device tree; the bare minimum needed to boot; just include and
+ * add a compatible value.  The bootloader will typically populate(填充) the memory
+ * node.
+ */
+
+/***********************************************************************************
+ *Device tree是一种简单的节点和属性的树形结构。属性是键值对(属性名=值),而节点可能
+ *包括属性和子节点。
+ * 
+ * 根节点 
+ * / {
+ *	   子节点	
+ *     node1{            
+ *		a-string-propery="A string";
+ *		a-string-list-propery = "first string","second string";
+ *		a-byte-data-propery=[0x01 0x23 0x34 0x56];
+ *		child-node1 {
+ *			first-child-propery=<1>;
+ *			second-child-propery=<1>;
+ *			a-string-propery="Hello,world";
+ *		};
+ *
+ *		child-node2{
+ *		
+ *		};
+ *
+ *    };
+ *	 
+ *    node2{
+ *     an-empyt-propery;
+ *	   a-cell-propery = <1 2 3 4>;each number (cell) is a uint32
+ *  	  child-node1{
+ *	   };    
+ *    };
+ * }
+ * 
+ *解释
+ *(1)一个单独的根节点 : "/"
+ *(2)两个子节点       : "node1" 和 "node2"
+ *(3)node1的子节点: "child-node1" 和 "child-node2"
+ *(4)一堆分散在树里的属性
+ *
+ *
+ *--------------------------------------------------------------------------------
+ *属性是最简单的键-值对，它的值可以为空或者是一个有效的数据,基本的数据类型如下
+ *(1)属性后面的值可以是一个字符串，如:
+ *   a string-propery = "a string"
+ *
+ *(2)属性后面的值可以是多个32位的无符号整数,用尖括号限定
+ *   cell-propery = <0xbeef 123 0xabcd1234>
+ *
+ *(3)属性后面的值可以多个二进制数据，用方括号限定
+ *   binary-propery = [0x01 0x23 0x45 0x67] 
+ *   注意:写的时候用十六进制来表示二进制
+ *
+ *(4)属性后面的值可以是多个不同形式的数据组合在一起，他们之间用逗号隔开
+ *  mixed-propery = "a string",[0x01 0x23 0x45 0x67],<0x12345678>
+ *
+ *(5)属性后面的值可以多个字符传，他们之间用逗号隔开
+ *  string-list = "red fish","blue fish";
+ *----------------------------------------------------------------------------------------------------
+ *
+ *常见的属性说明:
+ *
+ *(1)#address-cells = <1个或多个uint32整数>
+ *   #可以理解为多少个,cell可以理解位uint32整数，所以它表示地址用多少个uint32位整数表示   
+ *
+ *   #size-cells    = <1个或多个uint32整数>
+ *   所以它表示长度用多少个uint32位整数表示
+ *
+ *   reg            = <address1 length1 [address2 length2] [address3 length3]...>中括号部分表示可选
+ *   每个可编址设备都有一个元组列表的reg,元组的形式位:reg = <地址1 长度1 [地址2 长度2] ...>。
+ *   每个元组都表示一个该设备使用的地址范围。每个地址值或长度可以是一个或多个32位整数列表。
+ *   
+ *   由于地址和长度字段都是可变大小的，那么父节点的#address-cells和#size-cells属性就是用来声明子节点
+ *   reg属性中地址值和长度的数量。换句话说，正确解释一个reg属性需要用到父节点的#address-cells和#size-cells值 
+ *
+ *   举例说明:
+ *  
+ *   cpus{
+ *		#address-cells = <1>;
+ *      #size-cells    = <0>;
+
+ *      cpu@0{
+ *			compatible="arm,cortex-a9";
+ *			reg=<0>;
+ *       };
+ *       cpu@1{
+ *	 		compatible="arm,cortex-a9";
+ *			reg=<1>;
+ *		};
+ *   };
+ *   在cpu节点中，#address-cells设置为1,#size-cells设置为0。这意味着字节点的reg值是一个单一的uint32,
+ *   这是一个不包含大小字段的地址，为这两个cpu分配的地址是0和1。cpu节点的#size-cells为0,是因为只
+ *   为每个cpu分配一个单独的地址。
+ *    
+ *   你可能还会注意到reg的值和节点名字是相同的。按照惯例，如果一个节点有reg属性，那么该节点的名字
+ *   就必须包含设备地址，这个设备地址就是reg属性里第一个地址值。
+ *  
+ *  /{
+ *      #address-cells = <1>;
+ *      #size-cells    = <1>;
+ *      ...
+ *      serial@101f0000{
+ *			compatible = "arm,pl1011";
+ *      	reg        = <0x101f0000 0x1000>;
+ *      };
+
+ *      led@11000c40{
+ 			reg   =   <0x11000c40  0x8>
+ *      };
+ *      
+ *      serial@101f2000{
+ *          compatible = "arm,pl1011";
+ *      	reg        = <0x101f2000 0x1000>;
+ *       };
+ *       
+ *       gpio@101f3000{
+ *       	compatible = "arm,pl061";
+ *      	reg        = <0x101f3000 0x1000 
+ *		                  0x101f4000 0x0010>;
+ *       };
+ *       
+ *       interrupt-controller@10140000{
+ *    
+ * 			compatible = "arm,pl190";
+ *           reg        = <0x1040000 0x1000>;
+ *        };
+ *   }; 
+ *
+ * (2)chosen node 
+ *    chosen节点并不代表一个真正的设备,只是作为bootloader和操作系统传递参数的地方。
+ *    例如:
+ *    chosen{
+ *     bootargs = "root=/dev/nfs rw nfsroot=192.168.1.100:/home/linux/rootfs console=ttySAC2,115200";
+ *    };
+ *
+ * (3)aliases node 
+ *    用来定义别名。由于Device
+ *    tree是树装结构，当引用一个node的时候需要指明相对于root node的full
+ *    path。例如:/node-name-1/node-name-2/node-name-N。如果多次引用，每次都要写这么复杂的字符串多少有些麻烦。
+ *    因此可以在aliases节点定义一些full path的缩写的设备节点。
+ *    例如:    
+ *     
+ *    aliases{
+ *    	i2c6 = &pca9546_i2c0;
+ *      i2c7 = &pca9546_i2c1;
+ *    };
+ *    表示i2c6为pca9546_i2c0的别名,当使用i2c6的时候，也就是使用pca9546_i2c0
+ *
+ *(4)memory node 
+ *   memory device
+ *   node是所有设备树文件的必备节点，它定义了系统物理内存的layout。device_type属性定义了该node的
+ *   设备类型，例如:cpu ,serial等。对于memory
+ *   node,其device_type必须等于memory。reg属性定义了访问该device_node的地址信息，该属性的值被解析
+ *   成任意长度的(address,size)数组，具体用多长的数据来表示address和size是在其parent  node中定义(#address-cells 和#size-cells)。
+ *
+ *   例如:在64位系统上,physical memory分成两段,定义如下:
+ * 
+ *   RAM :starting address 0x0,                   length 0x8000,0000   (2GB)
+ *   RAM :starting address 0x1,0000,0000          length 0x1,0000,0000 (4GB)
+ *
+ *   /{
+ *       #address-cells = <2>
+ *       #size-cells    = <2>
+ *      
+ *       memory@0{
+ *			reg = <0x00000000 0x00000000  0x00000000 0x80000000
+ *                 0x00000001 0x00000000  0x00000001 0x00000000>;
+ *       };
+ *   };
+ *
+ */
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	chosen { 
+	
+	};
+
+	aliases { 
+	
+	};
+	
+	memory { 
+		device_type = "memory"; 
+		reg = <0 0>; 
+	};
+};

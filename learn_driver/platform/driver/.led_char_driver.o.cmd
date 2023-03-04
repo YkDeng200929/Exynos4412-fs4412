@@ -1,0 +1,1 @@
+cmd_/mnt/hgfs/linux_share/learn_driver/platform/driver/led_char_driver.o := arm-none-linux-gnueabi-ld -EL    -r -o /mnt/hgfs/linux_share/learn_driver/platform/driver/led_char_driver.o /mnt/hgfs/linux_share/learn_driver/platform/driver/led_driver.o /mnt/hgfs/linux_share/learn_driver/platform/driver/led_char.o 
